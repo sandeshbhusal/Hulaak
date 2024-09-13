@@ -1,74 +1,91 @@
-use tokio::{
-    select,
-    sync::mpsc::{Receiver, Sender},
-    task::JoinHandle,
-    time,
-};
+use async_channel::{Receiver, Sender};
+use tokio::{join, select, task::JoinHandle};
 
-#[derive(Debug)]
-enum Message {}
+type Message = String;
 
 #[derive(Debug)]
 struct Module {
     name: &'static str,
-    output: Sender<Message>,
-    input: Receiver<Message>,
+    input_channel: Option<Receiver<Message>>,
+    output_channel: Option<Sender<Message>>,
 }
 
 impl Module {
-    async fn run(mut self) -> JoinHandle<()> {
-        let mut ticker = time::interval(time::Duration::from_secs(1));
-        let handle = tokio::spawn(async move {
-            loop {
-                select! {
-                    Some(msg) = self.input.recv() => {
-                        println!("{}: Received some message: {:?}", self.name, msg);
-                        // Write back the same message.
-                        let _ = self.output.send(msg).await;
-                    }
-                    _ = ticker.tick() => {
-                        // Do something
-                        println!("{}: Handling tick.", self.name)
-                    }
-                }
-            }
-        });
-
-        handle
+    fn new(name: &'static str) -> Self {
+        Module {
+            name,
+            input_channel: None,
+            output_channel: None,
+        }
     }
 
-    fn new(name: &'static str) -> Self {
-        let (output, input) = tokio::sync::mpsc::channel(100);
-        Self {
-            output,
-            input,
-            name,
+    async fn run(self) -> Result<JoinHandle<()>, ()> {
+        if let Some(input_channel) = self.input_channel {
+            let task = tokio::spawn(async move {
+                'outerloop: loop {
+                    select! {
+                        msg = input_channel.recv() => {
+                            match msg {
+                                Ok(received) => {
+                                    println!("{} received: {}", self.name, received);
+                                    if let Some(output_channel) = &self.output_channel {
+                                        output_channel.send(received).await.unwrap();
+                                    }                                },
+                                Err(recverr) => {
+                                    println!("{} received error: {:?}", self.name, recverr);
+                                    break 'outerloop;
+                                },
+                            }
+                        }
+                    }
+                }
+            });
+
+            Ok(task)
+        } else {
+            println!("No input channel set for module.");
+            Err(())
         }
+    }
+
+    fn set_input_channel(&mut self, input_channel: Receiver<Message>) {
+        self.input_channel = Some(input_channel);
+    }
+
+    fn set_downstream(&mut self, downstream: &mut Module) {
+        let (tx, rx) = async_channel::unbounded();
+        self.output_channel = Some(tx);
+        downstream.set_input_channel(rx);
     }
 }
 
-fn main() {
-    let module1 = Module::new("Ping");
-    let module2 = Module::new("Pong");
+#[tokio::main]
+async fn main() {
+    let (tx, rx) = async_channel::unbounded();
+    let mut ping_module = Module::new("Ping");
+    let mut pong_module = Module::new("Pong");
 
-    let handle = Module::run(module1);
-    let handle2 = Module::run(module2);
+    ping_module.set_input_channel(rx);
+    ping_module.set_downstream(&mut pong_module);
 
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
+    let ping_module_handle = tokio::spawn(async move {
+        ping_module.run().await.unwrap();
+    });
 
-    runtime.block_on(async move {
-        tokio::select! {
-            _ = handle.await => {
-                println!("Module finished.");
-            }
-            _ = handle2.await => {
-                println!("Module2 finished.");
-            }
+    let pong_module_handle = tokio::spawn(async move {
+        pong_module.run().await.unwrap();
+    });
+
+    let sender_handle = tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(tokio::time::Duration::from_secs(1));
+        let mut x = 0;
+        while x < 2 {
+            tx.send("Hello".to_string()).await.unwrap();
+            ticker.tick().await;
+            x += 1;
         }
     });
 
-    loop {}
+    // println!("Sent init message");
+    let _ = join!(sender_handle, ping_module_handle, pong_module_handle);
 }
