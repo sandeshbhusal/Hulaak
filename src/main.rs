@@ -1,51 +1,74 @@
-use std::thread::JoinHandle;
+use tokio::{
+    select,
+    sync::mpsc::{Receiver, Sender},
+    task::JoinHandle,
+    time,
+};
 
-use anyhow::Result;
+#[derive(Debug)]
+enum Message {}
 
-type Message = String;
+#[derive(Debug)]
+struct Module {
+    name: &'static str,
+    output: Sender<Message>,
+    input: Receiver<Message>,
+}
 
-trait Actor {
-    fn get_name(&self) -> &'static str;
-    fn consume_message(&self, message: Message);
-    fn emit_message(&self) -> Option<Message>;
-    fn handle_message(&self, message: Message) {
+impl Module {
+    async fn run(mut self) -> JoinHandle<()> {
+        let mut ticker = time::interval(time::Duration::from_secs(1));
+        let handle = tokio::spawn(async move {
+            loop {
+                select! {
+                    Some(msg) = self.input.recv() => {
+                        println!("{}: Received some message: {:?}", self.name, msg);
+                        // Write back the same message.
+                        let _ = self.output.send(msg).await;
+                    }
+                    _ = ticker.tick() => {
+                        // Do something
+                        println!("{}: Handling tick.", self.name)
+                    }
+                }
+            }
+        });
+
+        handle
+    }
+
+    fn new(name: &'static str) -> Self {
+        let (output, input) = tokio::sync::mpsc::channel(100);
+        Self {
+            output,
+            input,
+            name,
+        }
     }
 }
 
-struct SaysHello;
-struct SaysWhat;
+fn main() {
+    let module1 = Module::new("Ping");
+    let module2 = Module::new("Pong");
 
-impl Actor for SaysHello {
-    fn get_name(&self) -> &'static str {
-        "SaysHello"
-    }
+    let handle = Module::run(module1);
+    let handle2 = Module::run(module2);
 
-    fn consume_message(&self, message: Message) {
-        println!("{} says: {}", self.get_name(), message);
-    }
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
 
-    fn emit_message(&self) -> Option<Message> {
-        Some("Hello!".to_string())
-    }
-}
+    runtime.block_on(async move {
+        tokio::select! {
+            _ = handle.await => {
+                println!("Module finished.");
+            }
+            _ = handle2.await => {
+                println!("Module2 finished.");
+            }
+        }
+    });
 
-impl Actor for SaysWhat {
-    fn get_name(&self) -> &'static str {
-        "SaysWhat"
-    }
-
-    fn consume_message(&self, message: Message) {
-        println!("{} says: {}", self.get_name(), message);
-    }
-
-    fn emit_message(&self) -> Option<Message> {
-        Some("What?".to_string())
-    }
-}
-
-fn main() -> Result<()> {
-    let mut actor1 = Box::new(SaysHello);
-    let mut actor2 = Box::new(SaysWhat);
-
-    Ok(())
+    loop {}
 }
