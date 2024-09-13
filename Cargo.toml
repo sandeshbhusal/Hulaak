@@ -5,4 +5,5 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.88"
+crossbeam = { version = "0.8.4", features = ["crossbeam-channel"] }
 tokio = { version = "1.40.0", features = ["full"] }
