@@ -2,12 +2,13 @@ use std::{
     future::Future,
     io::{Error, Read, Write},
     net::UdpSocket,
+    os::unix::net::UnixStream,
 };
 
 use anyhow::Result;
 use async_channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
-use tokio::{select, task::JoinHandle};
+use tokio::{net::UnixSocket, select, task::JoinHandle};
 
 #[derive(Debug, Serialize, Deserialize)]
 enum Message {
@@ -22,38 +23,38 @@ enum MessageReply {
     NotImplemented,
 }
 
-enum Transport {
+enum Senders {
     Udp(UdpSocket),
-    File(std::fs::File),
-    AsyncChannel {
-        sender: Sender<Message>,
-        receiver: Receiver<Message>,
-    },
+    Uds(UnixSocket),
+    AsyncChannel(Sender<Message>),
+}
+
+enum Receivers {
+    Udp(UdpSocket),
+    Uds(UnixStream),
+    AsyncChannel(Receiver<Message>),
 }
 
 struct MailBox {
-    in_box: Transport,
-    out_box: Option<Transport>,
+    in_box: Receivers,
+    out_box: Option<Senders>,
 }
 
 impl MailBox {
     async fn send_message(&mut self, message: Message) {
         if let Some(out_box) = &mut self.out_box {
             match out_box {
-                Transport::Udp(socket) => {
+                Senders::Udp(socket) => {
                     socket
                         .send(bincode::serialize(&message).unwrap().as_ref())
                         .unwrap();
                 }
 
-                Transport::File(file) => {
-                    file.write_all(bincode::serialize(&message).unwrap().as_ref())
-                        .unwrap();
-                }
-
-                Transport::AsyncChannel { sender, .. } => {
+                Senders::AsyncChannel(sender) => {
                     sender.send(message).await.unwrap();
                 }
+
+                Senders::Uds(_) => todo!(),
             }
         } else {
             println!("No outbox found for module");
@@ -62,7 +63,7 @@ impl MailBox {
 
     async fn receive_message(&mut self) -> Result<Option<Message>> {
         let message = match &mut self.in_box {
-            Transport::Udp(socket) => {
+            Receivers::Udp(socket) => {
                 let mut buf = [0; 1024];
                 let (size, _) = socket.recv_from(&mut buf)?;
                 if size == 0 {
@@ -73,16 +74,8 @@ impl MailBox {
                 }
             }
 
-            // Do stuff like inotify.
-            Transport::File(ref mut file) => {
-                let mut buf = String::new();
-                file.read_to_string(&mut buf)?;
-                Some(Message::Normal(buf))
-            }
-
-            Transport::AsyncChannel { receiver, .. } => {
-                Some(receiver.recv().await.expect("Async failed"))
-            }
+            Receivers::AsyncChannel(receiver) => Some(receiver.recv().await.expect("Async failed")),
+            Receivers::Uds(_) => todo!(),
         };
 
         Ok(message)
@@ -179,25 +172,13 @@ async fn main() {
     let (tx2, rx2) = async_channel::unbounded();
 
     let mailbox = MailBox {
-        in_box: Transport::AsyncChannel {
-            sender: tx.clone(),
-            receiver: rx.clone(),
-        },
-        out_box: Some(Transport::AsyncChannel {
-            sender: tx2.clone(),
-            receiver: rx2.clone(),
-        }),
+        in_box: Receivers::AsyncChannel(rx),
+        out_box: Some(Senders::AsyncChannel(tx2)),
     };
 
     let pong_mailbox = MailBox {
-        in_box: Transport::AsyncChannel {
-            sender: tx2.clone(),
-            receiver: rx2.clone(),
-        },
-        out_box: Some(Transport::AsyncChannel {
-            sender: tx.clone(),
-            receiver: rx.clone(),
-        }),
+        in_box: Receivers::AsyncChannel(rx2),
+        out_box: Some(Senders::AsyncChannel(tx.clone())),
     };
 
     let ping = Ping;
@@ -206,9 +187,11 @@ async fn main() {
     let kh = pong.run(pong_mailbox);
 
     // Ping should receive one message :)
-    let send = tx.send(Message::Normal("Hello!".to_string())).await.unwrap();
+    tx.send(Message::Normal("Hello!".to_string()))
+        .await
+        .unwrap();
 
     println!("Starting..");
     let _ = tokio::join!(jh, kh);
-    loop{}
+    loop {}
 }
