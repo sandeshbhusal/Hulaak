@@ -1,4 +1,5 @@
 use std::{
+    future::Future,
     io::{Error, Read, Write},
     net::UdpSocket,
 };
@@ -36,10 +37,6 @@ struct MailBox {
 }
 
 impl MailBox {
-    fn new_mailbox(in_box: Transport, out_box: Option<Transport>) -> Self {
-        MailBox { in_box, out_box }
-    }
-
     async fn send_message(&mut self, message: Message) {
         if let Some(out_box) = &mut self.out_box {
             match out_box {
@@ -58,6 +55,8 @@ impl MailBox {
                     sender.send(message).await.unwrap();
                 }
             }
+        } else {
+            println!("No outbox found for module");
         }
     }
 
@@ -90,17 +89,13 @@ impl MailBox {
     }
 }
 
-trait Actor {
-    async fn run(self, mailbox: MailBox) -> JoinHandle<()>;
-    async fn handle_message(&self, message: Message, mailbox: &mut MailBox) -> MessageReply;
-}
-
-struct Ping;
-
-impl Actor for Ping {
-    async fn run(self, mut mailbox: MailBox) -> JoinHandle<()> {
-        let mut ticker = tokio::time::interval(tokio::time::Duration::from_secs(1));
-        let joinhandle = tokio::spawn(async move {
+trait Actor: Send + 'static {
+    async fn run(self, mut mailbox: MailBox) -> JoinHandle<()>
+    where
+        Self: Sized,
+    {
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(tokio::time::Duration::from_secs(1));
             loop {
                 select! {
                     message = mailbox.receive_message() => {
@@ -108,6 +103,8 @@ impl Actor for Ping {
                             let _ = self.handle_message(message, &mut mailbox).await;
                         } else {
                             // We either got an empty message, or an error.
+                            // Send an error to outbox.
+                            mailbox.send_message(Message::ShutDown).await;
                         }
                     },
 
@@ -116,11 +113,18 @@ impl Actor for Ping {
                     }
                 }
             }
-        });
-
-        joinhandle
+        })
     }
 
+    fn handle_message(
+        &self,
+        message: Message,
+        mailbox: &mut MailBox,
+    ) -> impl Future<Output = MessageReply> + Send;
+}
+
+struct Ping;
+impl Actor for Ping {
     async fn handle_message(&self, message: Message, mailbox: &mut MailBox) -> MessageReply {
         match message {
             Message::Normal(message) => {
@@ -128,10 +132,16 @@ impl Actor for Ping {
                 std::io::stdout().flush().unwrap();
 
                 // Send a reply back.
-                mailbox.send_message(Message::Normal("Pong".to_string())).await;
+                mailbox
+                    .send_message(Message::Normal("Pong".to_string()))
+                    .await;
             }
-            Message::HeartBeat => {}
-            Message::ShutDown => {}
+            Message::HeartBeat => {
+                return MessageReply::NotImplemented;
+            }
+            Message::ShutDown => {
+                return MessageReply::NotImplemented;
+            }
         }
 
         MessageReply::Ok
@@ -151,7 +161,7 @@ async fn main() {
     };
 
     let ping = Ping;
-    let jh = ping.run(mailbox).await;
+    let jh = ping.run(mailbox);
 
     // Spawn another thread that sends data to ping every second.
     let sender = tokio::spawn(async move {
