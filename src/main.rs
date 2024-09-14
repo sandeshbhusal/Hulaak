@@ -32,29 +32,31 @@ enum Transport {
 
 struct MailBox {
     in_box: Transport,
-    out_box: Transport,
+    out_box: Option<Transport>,
 }
 
 impl MailBox {
-    fn new_mailbox(in_box: Transport, out_box: Transport) -> Self {
+    fn new_mailbox(in_box: Transport, out_box: Option<Transport>) -> Self {
         MailBox { in_box, out_box }
     }
 
     async fn send_message(&mut self, message: Message) {
-        match &mut self.out_box {
-            Transport::Udp(socket) => {
-                socket
-                    .send(bincode::serialize(&message).unwrap().as_ref())
-                    .unwrap();
-            }
+        if let Some(out_box) = &mut self.out_box {
+            match out_box {
+                Transport::Udp(socket) => {
+                    socket
+                        .send(bincode::serialize(&message).unwrap().as_ref())
+                        .unwrap();
+                }
 
-            Transport::File(file) => {
-                file.write_all(bincode::serialize(&message).unwrap().as_ref())
-                    .unwrap();
-            }
+                Transport::File(file) => {
+                    file.write_all(bincode::serialize(&message).unwrap().as_ref())
+                        .unwrap();
+                }
 
-            Transport::AsyncChannel { sender, .. } => {
-                sender.send(message).await.unwrap();
+                Transport::AsyncChannel { sender, .. } => {
+                    sender.send(message).await.unwrap();
+                }
             }
         }
     }
@@ -90,11 +92,10 @@ impl MailBox {
 
 trait Actor {
     async fn run(self, mailbox: MailBox) -> JoinHandle<()>;
-    async fn handle_message(&self, mailbox: &mut MailBox) -> MessageReply;
+    async fn handle_message(&self, message: Message, mailbox: &mut MailBox) -> MessageReply;
 }
 
 struct Ping;
-struct Pong;
 
 impl Actor for Ping {
     async fn run(self, mut mailbox: MailBox) -> JoinHandle<()> {
@@ -102,8 +103,12 @@ impl Actor for Ping {
         let joinhandle = tokio::spawn(async move {
             loop {
                 select! {
-                    _ = mailbox.receive_message() => {
-                        self.handle_message(&mut mailbox).await;
+                    message = mailbox.receive_message() => {
+                        if let Ok(Some(message)) = message  {
+                            let _ = self.handle_message(message, &mut mailbox).await;
+                        } else {
+                            // We either got an empty message, or an error.
+                        }
                     },
 
                     _ = ticker.tick() => {
@@ -116,19 +121,17 @@ impl Actor for Ping {
         joinhandle
     }
 
-    async fn handle_message(&self, mailbox: &mut MailBox) -> MessageReply {
-        match mailbox.receive_message().await {
-            Ok(Some(message)) => match message {
-                Message::Normal(message) => {
-                    println!("Received message: {}", message);
-                }
-                Message::HeartBeat => {}
-                Message::ShutDown => {}
-            },
-            Ok(None) => {
-                println!("No message received.")
+    async fn handle_message(&self, message: Message, mailbox: &mut MailBox) -> MessageReply {
+        match message {
+            Message::Normal(message) => {
+                println!("Received message: {}", message);
+                std::io::stdout().flush().unwrap();
+
+                // Send a reply back.
+                mailbox.send_message(Message::Normal("Pong".to_string())).await;
             }
-            Err(error) => println!("Error: {}", error),
+            Message::HeartBeat => {}
+            Message::ShutDown => {}
         }
 
         MessageReply::Ok
@@ -137,5 +140,28 @@ impl Actor for Ping {
 
 #[tokio::main]
 async fn main() {
+    let (tx, rx) = async_channel::unbounded();
+
+    let mailbox = MailBox {
+        in_box: Transport::AsyncChannel {
+            sender: tx.clone(),
+            receiver: rx.clone(),
+        },
+        out_box: None,
+    };
+
     let ping = Ping;
+    let jh = ping.run(mailbox).await;
+
+    // Spawn another thread that sends data to ping every second.
+    let sender = tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(tokio::time::Duration::from_secs(1));
+        for _ in 0..5 {
+            tx.send(Message::Normal("Hello".to_string())).await.unwrap();
+            ticker.tick().await;
+        }
+    });
+
+    println!("Starting..");
+    let _ = tokio::join!(jh, sender);
 }
