@@ -133,6 +133,31 @@ impl Actor for Ping {
 
                 // Send a reply back.
                 mailbox
+                    .send_message(Message::Normal("Ping".to_string()))
+                    .await;
+            }
+            Message::HeartBeat => {
+                return MessageReply::NotImplemented;
+            }
+            Message::ShutDown => {
+                return MessageReply::NotImplemented;
+            }
+        }
+
+        MessageReply::Ok
+    }
+}
+
+struct Pong;
+impl Actor for Pong {
+    async fn handle_message(&self, message: Message, mailbox: &mut MailBox) -> MessageReply {
+        match message {
+            Message::Normal(message) => {
+                println!("Received message: {}", message);
+                std::io::stdout().flush().unwrap();
+
+                // Send a reply back.
+                mailbox
                     .send_message(Message::Normal("Pong".to_string()))
                     .await;
             }
@@ -151,27 +176,39 @@ impl Actor for Ping {
 #[tokio::main]
 async fn main() {
     let (tx, rx) = async_channel::unbounded();
+    let (tx2, rx2) = async_channel::unbounded();
 
     let mailbox = MailBox {
         in_box: Transport::AsyncChannel {
             sender: tx.clone(),
             receiver: rx.clone(),
         },
-        out_box: None,
+        out_box: Some(Transport::AsyncChannel {
+            sender: tx2.clone(),
+            receiver: rx2.clone(),
+        }),
+    };
+
+    let pong_mailbox = MailBox {
+        in_box: Transport::AsyncChannel {
+            sender: tx2.clone(),
+            receiver: rx2.clone(),
+        },
+        out_box: Some(Transport::AsyncChannel {
+            sender: tx.clone(),
+            receiver: rx.clone(),
+        }),
     };
 
     let ping = Ping;
+    let pong = Pong;
     let jh = ping.run(mailbox);
+    let kh = pong.run(pong_mailbox);
 
-    // Spawn another thread that sends data to ping every second.
-    let sender = tokio::spawn(async move {
-        let mut ticker = tokio::time::interval(tokio::time::Duration::from_secs(1));
-        for _ in 0..5 {
-            tx.send(Message::Normal("Hello".to_string())).await.unwrap();
-            ticker.tick().await;
-        }
-    });
+    // Ping should receive one message :)
+    let send = tx.send(Message::Normal("Hello!".to_string())).await.unwrap();
 
     println!("Starting..");
-    let _ = tokio::join!(jh, sender);
+    let _ = tokio::join!(jh, kh);
+    loop{}
 }
