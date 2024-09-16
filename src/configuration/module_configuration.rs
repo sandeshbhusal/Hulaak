@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use uuid::Uuid;
 
 use async_channel::{Sender, Receiver};
@@ -33,14 +35,10 @@ pub struct ModuleDefinition{
     pub description: String,
     pub address_type: ModuleAddressType,
 
+    pub module_settings: HashMap<String, serde_json::Value>,
+
     #[serde(skip)]
     pub inbox: Option<Receiver<String>>,
     #[serde(skip)]
     pub outbox: Option<Sender<String>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SomeConfigurationItem {
-    #[serde(default = "Uuid::new_v4")]
-    pub uuid: uuid::Uuid,
 }
