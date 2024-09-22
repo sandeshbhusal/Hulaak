@@ -31,8 +31,8 @@ impl ModuleTrait for FileChangeWatcherModule {
             // We do not care about the inbox.
         })
     }
-    
-    fn get_name() -> &'static str {
+
+    fn get_name(&self) -> &'static str {
         "filechangewatcher"
     }
 }

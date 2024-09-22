@@ -17,13 +17,13 @@ pub struct GlobalConfiguration {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-enum RouteCardinality {
+pub enum RouteCardinality {
     Multiple(Vec<String>),
     Single(String),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct RouteConfiguration {
+pub struct RouteConfiguration {
     #[serde(default = "uuid::Uuid::new_v4")]
     pub id: uuid::Uuid,
 

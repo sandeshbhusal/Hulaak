@@ -21,7 +21,7 @@ impl ModuleTrait for PingModule {
         rval
     }
 
-    fn get_name() -> &'static str {
+    fn get_name(&self) -> &'static str {
         "ping"
     }
 }

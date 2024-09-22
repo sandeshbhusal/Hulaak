@@ -1,8 +1,8 @@
-use std::process::exit;
-
 use anyhow::Result;
-use clap::Parser;
-use configuration::global_configuration::GlobalConfiguration;
+use configuration::{
+    global_configuration::GlobalConfiguration, module_configuration::ModuleConfiguration,
+};
+use modules::{manager, module::ModuleTrait};
 mod configuration;
 mod messaging;
 mod modules;
@@ -18,8 +18,7 @@ struct Configuration {
     configuration_file: String,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     // Let's just use a global configuration for now.
     let _global_configuration = r#"
         [modules]
@@ -39,8 +38,17 @@ async fn main() -> Result<()> {
         "#;
 
     // parse the global configuration.
-    let configuration: GlobalConfiguration = toml::from_str(_global_configuration)?;
+    let configuration: ModuleConfiguration = toml::from_str(_global_configuration)?;
 
-    println!("{:?}", configuration);
+    // Start an executor for our "manager" module, and block on it.
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?
+        .block_on(async {
+            let manager = manager::manager::Manager::new(configuration);
+            manager.run().await;
+        });
+
+    // We pass the global configuration to our manager module after spawning it on a thread.
     Ok(())
 }
