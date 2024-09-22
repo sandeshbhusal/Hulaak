@@ -1,12 +1,11 @@
 use async_channel::Sender;
 
 use crate::{
-    configuration::module_configuration::ModuleConfiguration,
-    modules::{filechange::Configuration, module::ModuleTrait},
+    configuration::module_configuration::ModuleConfiguration, messaging::message::Message, modules::{filechange::Configuration, module::ModuleTrait}
 };
 
 pub(crate) struct FileChangeWatcherModule {
-    pub outbox: Option<Sender<String>>
+    pub outbox: Option<Sender<Message>>
 }
 
 impl ModuleTrait for FileChangeWatcherModule {
@@ -34,6 +33,14 @@ impl ModuleTrait for FileChangeWatcherModule {
 
     fn get_name(&self) -> &'static str {
         "filechangewatcher"
+    }
+
+    fn set_outbox(&mut self, outbox: Option<Sender<crate::messaging::message::Message>>) {
+        self.outbox = outbox;
+    }
+
+    fn set_inbox(&mut self, _inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>) {
+        unimplemented!("FileChangeWatcherModule does not need an inbox. Error in wiring?");
     }
 }
 

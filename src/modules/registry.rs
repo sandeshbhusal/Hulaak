@@ -1,33 +1,23 @@
-use std::collections::HashMap;
-use std::sync::LazyLock;
+use crate::{
+    configuration::module_configuration::ModuleConfiguration,
+    modules::echo::echo_module::EchoModule,
+};
 
-use std::sync::Mutex;
+use super::{filechange::lib::FileChangeWatcherModule, module::ModuleTrait};
 
-#[derive(Default, Debug, Clone)]
-struct ModuleRegistry {
-    pub(crate) map: HashMap<String, String>,
+pub enum ModulesRegistry {
+    EchoModule(EchoModule),
+    FileChangeWatcherModule(FileChangeWatcherModule),
 }
 
-static MODULE_REGISTRY: LazyLock<Mutex<ModuleRegistry>> = LazyLock::new(|| Mutex::new(ModuleRegistry::default()));
-
-impl ModuleRegistry {
-    fn register_module(&mut self, name: String, path: String) {
-        self.map.insert(name, path);
-    }
-
-    fn get_module_path(&self, name: &str) -> Option<&String> {
-        self.map.get(name)
-    }
-}
-
-macro_rules! register_module {
-    ($name:expr, $path:expr) => {
-        #[ctor::ctor]
-        fn register_module(){
-            let mut registry = MODULE_REGISTRY.lock().expect("Failed to get map");
-            registry.register_module($name.to_string(), $path.to_string());
+impl ModulesRegistry {
+    pub fn get_module(name: &str, configuration: ModuleConfiguration) -> Box<dyn ModuleTrait> {
+        match name {
+            "echo" => Box::new(EchoModule::new(configuration)),
+            "filechangewatcher" => Box::new(FileChangeWatcherModule::new(configuration)),
+            _ => {
+                panic!("Unknown module type: {}", name)
+            }
         }
-    };
+    }
 }
-
-register_module!("ping", "modules::echo_module::PingModule");

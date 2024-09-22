@@ -1,9 +1,11 @@
-use std::{collections::HashMap, default};
+use std::collections::HashMap;
 
 use uuid::Uuid;
 
 use async_channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
+
+use crate::messaging::message::Message;
 
 pub type PeerID = String;
 
@@ -29,7 +31,7 @@ pub struct ModuleConfiguration {
     pub module_settings: Option<HashMap<String, serde_json::Value>>,
 
     #[serde(skip)]
-    pub inbox: Option<Receiver<String>>,
+    pub inbox: Option<Receiver<Message>>,
     #[serde(skip)]
-    pub outbox: Option<Sender<String>>,
+    pub outbox: Option<Sender<Message>>,
 }

@@ -1,8 +1,6 @@
 use anyhow::Result;
-use configuration::{
-    global_configuration::GlobalConfiguration, module_configuration::ModuleConfiguration,
-};
-use modules::{manager, module::ModuleTrait};
+use configuration::global_configuration::GlobalConfiguration;
+use modules::manager;
 mod configuration;
 mod messaging;
 mod modules;
@@ -38,7 +36,7 @@ fn main() -> Result<()> {
         "#;
 
     // parse the global configuration.
-    let configuration: ModuleConfiguration = toml::from_str(_global_configuration)?;
+    let configuration: GlobalConfiguration = toml::from_str(_global_configuration)?;
 
     // Start an executor for our "manager" module, and block on it.
     tokio::runtime::Builder::new_multi_thread()
@@ -49,6 +47,5 @@ fn main() -> Result<()> {
             manager.run().await;
         });
 
-    // We pass the global configuration to our manager module after spawning it on a thread.
     Ok(())
 }
