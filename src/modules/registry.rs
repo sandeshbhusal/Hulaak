@@ -5,10 +5,7 @@ use crate::{
 
 use super::{filechange::lib::FileChangeWatcherModule, module::ModuleTrait};
 
-pub enum ModulesRegistry {
-    EchoModule(EchoModule),
-    FileChangeWatcherModule(FileChangeWatcherModule),
-}
+pub struct ModulesRegistry;
 
 impl ModulesRegistry {
     pub fn get_module(name: &str, configuration: ModuleConfiguration) -> Box<dyn ModuleTrait> {

@@ -13,7 +13,7 @@ impl ModuleTrait for EchoModule {
         EchoModule { configuration }
     }
 
-    fn run(self) -> JoinHandle<()> {
+    fn run(self: Box<Self>) -> JoinHandle<()> {
         let rval = tokio::spawn(async {
             // Wait for something to come into my socket.
         });

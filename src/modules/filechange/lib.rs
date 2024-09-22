@@ -25,9 +25,14 @@ impl ModuleTrait for FileChangeWatcherModule {
         }
     }
 
-    fn run(self) -> tokio::task::JoinHandle<()> {
+    fn run(self: Box<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
-            // We do not care about the inbox.
+            loop {
+                // Wait until inotify says the file has changed.
+                // Then, send a message to the outbox.
+
+
+            }
         })
     }
 

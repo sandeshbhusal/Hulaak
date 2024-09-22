@@ -12,5 +12,5 @@ pub trait ModuleTrait: Sync + Send {
         Self: Sized;
     fn set_outbox(&mut self, outbox: Option<Sender<Message>>);
     fn set_inbox(&mut self, inbox: Option<Receiver<Message>>);
-    fn run(self) -> JoinHandle<()>;
+    fn run(self: Box<Self>) -> JoinHandle<()>;
 }

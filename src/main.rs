@@ -1,6 +1,6 @@
 use anyhow::Result;
 use configuration::global_configuration::GlobalConfiguration;
-use modules::manager;
+use modules::manager::{self, manager::Manager};
 mod configuration;
 mod messaging;
 mod modules;
@@ -24,7 +24,8 @@ fn main() -> Result<()> {
         module = "filechangewatcher"
 
         [modules.filechange_file.module_settings]
-        path = "/tmp/file"
+        file_path = "/tmp/file"
+        watch_for = [ "Modify" ]
 
         [modules.echo_file]
         module = "echo"
@@ -43,8 +44,7 @@ fn main() -> Result<()> {
         .enable_all()
         .build()?
         .block_on(async {
-            let manager = manager::manager::Manager::new(configuration);
-            manager.run().await;
+            Manager::new(configuration).run().await;
         });
 
     Ok(())
