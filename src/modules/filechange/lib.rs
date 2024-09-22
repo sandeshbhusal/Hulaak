@@ -1,11 +1,20 @@
+use std::collections::HashMap;
+
 use async_channel::Sender;
+use inotify::WatchMask;
 
 use crate::{
-    configuration::module_configuration::ModuleConfiguration, messaging::message::Message, modules::{filechange::Configuration, module::ModuleTrait}
+    configuration::module_configuration::ModuleConfiguration,
+    messaging::message::Message,
+    modules::{filechange::Configuration, module::ModuleTrait},
 };
 
+use super::Events;
+
 pub(crate) struct FileChangeWatcherModule {
-    pub outbox: Option<Sender<Message>>
+    path: String,
+    watch_for: Vec<Events>,
+    pub outbox: Option<Sender<Message>>,
 }
 
 impl ModuleTrait for FileChangeWatcherModule {
@@ -17,22 +26,48 @@ impl ModuleTrait for FileChangeWatcherModule {
         let serialized_config = serde_json::to_string(&_config).unwrap();
 
         // Convert the serialized config to module config.
-        let _module_config: Configuration = serde_json::from_str(&serialized_config)
+        let module_config: Configuration = serde_json::from_str(&serialized_config)
             .expect("Error configuring the filechange module");
 
         FileChangeWatcherModule {
             outbox: None, // outbox is populated later by the controller.
+            watch_for: module_config.watch_for,
+            path: module_config.file_path,
         }
     }
 
     fn run(self: Box<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
-            loop {
+            // loop {
                 // Wait until inotify says the file has changed.
                 // Then, send a message to the outbox.
+                // let mut outbox = self.outbox.clone();
 
+                // let mut notify =
+                //     inotify::Inotify::init().expect("Module failed to initialize inotify");
+                // let mut watches = notify.watches();
 
-            }
+                // for event in self.watch_for.iter() {
+                //     let _ = match event {
+                //         Events::Modify => {
+                //             watches.add(self.path.clone(), WatchMask::MODIFY).unwrap()
+                //         }
+                //         Events::Close => watches.add(self.path.clone(), WatchMask::CLOSE).unwrap(),
+                //     };
+                // }
+
+                // let mut buffer = Vec::with_capacity(1024);
+                // while let Ok(events) = notify.read_events(&mut buffer) {
+                //     for _ in events {
+                //         let message = Message::new(HashMap::new());
+
+                //         // Send the message to the outbox.
+                //         if let Some(outbox) = &mut outbox {
+                //             outbox.send(message).await.unwrap();
+                //         }
+                //     }
+                // }
+            // }
         })
     }
 
@@ -44,7 +79,10 @@ impl ModuleTrait for FileChangeWatcherModule {
         self.outbox = outbox;
     }
 
-    fn set_inbox(&mut self, _inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>) {
+    fn set_inbox(
+        &mut self,
+        _inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>,
+    ) {
         unimplemented!("FileChangeWatcherModule does not need an inbox. Error in wiring?");
     }
 }

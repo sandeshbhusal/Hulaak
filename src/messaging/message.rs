@@ -58,4 +58,7 @@ pub struct Message {
 }
 
 impl Message {
+    pub fn new(fields: HashMap<Values, Values>) -> Self {
+        Message { fields }
+    }
 }
