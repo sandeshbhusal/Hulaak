@@ -1,56 +1,46 @@
-use std::collections::HashMap;
+use std::process::exit;
 
 use anyhow::Result;
+use clap::Parser;
 use configuration::global_configuration::GlobalConfiguration;
-use modules::{module::ModuleTrait, ping_module::PingModule, pong_module::PongModule};
-
 mod configuration;
+mod messaging;
 mod modules;
 
-const CONFIGURATION: &str = r#"
-# Global Configuration
-version = "1.3.0"
-local_port = 8080
-allow_sync = true
-
-# Module Configurations
-[[modules]]
-name = "ping_1"
-module = "ping"
-module_type = "Input"
-description = "Ping Module"
-address_type = "Managed"
-
-[[modules]]
-name = "pong_1"
-module = "pong"
-module_type = "Processor"
-description = "Pong Module"
-address_type = "Managed"
-
-# Route Configurations
-[[routes]]
-name = "ping_to_pong"
-from = { Single = "ping_1" }
-to = { Single = "pong_1" }
-"#;
+#[derive(clap::Parser, Debug)]
+struct Configuration {
+    #[clap(
+        short = 'c',
+        long = "config",
+        default_value = "config.toml",
+        help = "Path to the configuration file"
+    )]
+    configuration_file: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let parsedconfig: GlobalConfiguration = toml::from_str(CONFIGURATION)?;
+    // Let's just use a global configuration for now.
+    let _global_configuration = r#"
+        [modules]
+        [modules.filechange_file]
+        module = "filechangewatcher"
 
-    let mut configured_modules = HashMap::new();
+        [modules.filechange_file.module_settings]
+        path = "/tmp/file"
 
-    for module_definition in parsedconfig.modules.iter() {
-        let module_to_use: Box<dyn ModuleTrait> = match module_definition.module.as_str() {
-            "ping" => Box::new(PingModule::new(module_definition.clone())),
-            "pong" => Box::new(PongModule::new(module_definition.clone())),
-            _ => panic!("Unknown module type"),
-        };
+        [modules.echo_file]
+        module = "echo"
 
-        // We have a configured module now.
-        configured_modules.insert(module_definition.name.clone(), module_to_use);
-    }
+        [routes]
+        [routes.simple_echo_from_file]
+        from = { Single = "filechange_file"}
+        to = { Single = "echo_file"}
+        "#;
 
+    // parse the global configuration.
+    let configuration: GlobalConfiguration = toml::from_str(_global_configuration)?;
+
+    println!("{:?}", configuration);
     Ok(())
 }

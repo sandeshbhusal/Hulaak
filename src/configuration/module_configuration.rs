@@ -1,18 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, default};
 
 use uuid::Uuid;
 
-use async_channel::{Sender, Receiver};
+use async_channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
 
 pub type PeerID = String;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum ModuleType {
-    Input,
-    Output,
-    Processor
-}
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub enum ModuleAddressType {
@@ -24,18 +17,16 @@ pub enum ModuleAddressType {
 }
 
 #[allow(unused)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ModuleDefinition{
+#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+pub struct ModuleConfiguration {
     #[serde(default = "Uuid::new_v4")]
     pub uuid: uuid::Uuid,
 
-    pub name: String,
     pub module: String,
-    pub module_type: ModuleType,
-    pub description: String,
-    pub address_type: ModuleAddressType,
+    pub description: Option<String>,
+    pub address_type: Option<ModuleAddressType>,
 
-    pub module_settings: HashMap<String, serde_json::Value>,
+    pub module_settings: Option<HashMap<String, serde_json::Value>>,
 
     #[serde(skip)]
     pub inbox: Option<Receiver<String>>,

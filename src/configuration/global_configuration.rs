@@ -1,21 +1,19 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
-use super::module_configuration::ModuleDefinition;
+use super::module_configuration::ModuleConfiguration;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GlobalConfiguration {
     #[serde(default = "uuid::Uuid::new_v4")]
     pub stage_id: uuid::Uuid,
 
-    pub version: String,
-    pub local_port: u16,
-    pub allow_sync: bool,
-
     // List of modules.
-    pub modules: Vec<ModuleDefinition>,
+    pub modules: HashMap<String, ModuleConfiguration>,
 
     // List of routes.
-    pub routes: Vec<RouteConfiguration>
+    pub routes: HashMap<String, RouteConfiguration>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,7 +27,6 @@ struct RouteConfiguration {
     #[serde(default = "uuid::Uuid::new_v4")]
     pub id: uuid::Uuid,
 
-    pub name: String,
     pub from: RouteCardinality,
-    pub to: RouteCardinality
+    pub to: RouteCardinality,
 }

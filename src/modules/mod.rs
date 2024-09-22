@@ -1,4 +1,5 @@
 pub mod module;
-pub mod ping_module;
-pub mod pong_module;
+pub mod manager;
+
+pub mod echo;
 pub mod filechange;

@@ -1,7 +1,7 @@
 use async_channel::Sender;
 
 use crate::{
-    configuration::module_configuration::ModuleDefinition,
+    configuration::module_configuration::ModuleConfiguration,
     modules::{filechange::Configuration, module::ModuleTrait},
 };
 
@@ -10,7 +10,7 @@ pub(crate) struct FileChangeWatcherModule {
 }
 
 impl ModuleTrait for FileChangeWatcherModule {
-    fn new(configuration: ModuleDefinition) -> Self
+    fn new(configuration: ModuleConfiguration) -> Self
     where
         Self: Sized,
     {
@@ -30,6 +30,10 @@ impl ModuleTrait for FileChangeWatcherModule {
         tokio::spawn(async move {
             // We do not care about the inbox.
         })
+    }
+    
+    fn get_name() -> &'static str {
+        "filechangewatcher"
     }
 }
 
