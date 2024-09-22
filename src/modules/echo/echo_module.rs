@@ -15,21 +15,36 @@ impl ModuleTrait for EchoModule {
 
     fn run(self: Box<Self>) -> JoinHandle<()> {
         let rval = tokio::spawn(async {
-            // Wait for something to come into my socket.
+            if let Some(inbox) = self.configuration.inbox {
+                loop {
+                    let message = inbox.recv().await;
+                    match message {
+                        Ok(message) => {
+                            println!("Echoing message: {:?}", message);
+                        }
+                        Err(e) => {
+                            println!("Error receiving message: {:?}", e);
+                            break;
+                        }
+                    }
+                }
+            }
         });
 
         rval
     }
 
-    fn get_name(&self) -> &'static str {
-        "echo"
-    }
-
-    fn set_outbox(&mut self, _outbox: Option<async_channel::Sender<crate::messaging::message::Message>>) {
+    fn set_outbox(
+        &mut self,
+        _outbox: Option<async_channel::Sender<crate::messaging::message::Message>>,
+    ) {
         unimplemented!("Echo module does not need an outbox. It is a sink module");
     }
 
-    fn set_inbox(&mut self, inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>) {
+    fn set_inbox(
+        &mut self,
+        inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>,
+    ) {
         self.configuration.inbox = inbox;
     }
 }

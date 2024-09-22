@@ -3,4 +3,5 @@ pub mod registry;
 pub mod manager;
 
 pub mod echo;
-pub mod filechange;
+// pub mod filechange; // Disabled because can't test on macos.
+pub mod udpsocket;

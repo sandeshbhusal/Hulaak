@@ -1,6 +1,6 @@
 use anyhow::Result;
 use configuration::global_configuration::GlobalConfiguration;
-use modules::manager::{self, manager::Manager};
+use modules::manager::manager::Manager;
 mod configuration;
 mod messaging;
 mod modules;
@@ -20,19 +20,20 @@ fn main() -> Result<()> {
     // Let's just use a global configuration for now.
     let _global_configuration = r#"
         [modules]
-        [modules.filechange_file]
-        module = "filechangewatcher"
-
-        [modules.filechange_file.module_settings]
-        file_path = "/tmp/file"
-        watch_for = [ "Modify" ]
-
         [modules.echo_file]
         module = "echo"
 
+        [modules.udp_sock_list]
+        module = "udpsocketlistener"
+
+        [modules.udp_sock_list.module_settings]
+        address = "0.0.0.0"
+        port = 8080
+        buffer_size = 1024
+
         [routes]
         [routes.simple_echo_from_file]
-        from = { Single = "filechange_file"}
+        from = { Single = "udp_sock_list"}
         to = { Single = "echo_file"}
         "#;
 
@@ -44,7 +45,14 @@ fn main() -> Result<()> {
         .enable_all()
         .build()?
         .block_on(async {
-            Manager::new(configuration).run().await;
+            match Manager::new(configuration).run().await {
+                Ok(_) => {
+                    println!("Running manager")
+                }
+                Err(_) => {
+                    panic!("Could  not run manager module")
+                }
+            }
         });
 
     Ok(())
