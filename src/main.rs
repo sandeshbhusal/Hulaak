@@ -31,9 +31,17 @@ fn main() -> Result<()> {
         port = 8080
         buffer_size = 1024
 
+        [modules.tcp_socket_check]
+        module = "tcpsocketlistener"
+
+        [modules.tcp_socket_check.module_settings]
+        address = "0.0.0.0"
+        port = 8081
+        buffer_size = 4096
+
         [routes]
         [routes.simple_echo_from_file]
-        from = { Single = "udp_sock_list"}
+        from = { Multiple = ["udp_sock_list", "tcp_socket_check"]}
         to = { Single = "echo_file"}
         "#;
 

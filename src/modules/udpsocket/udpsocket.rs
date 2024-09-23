@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use async_channel::Sender;
 use tokio::net::UdpSocket;
 
 use crate::{
@@ -11,8 +10,8 @@ use crate::{
 use super::UdpSocketConfiguration;
 
 pub struct UDPSocketListener {
+    properties: ModuleConfiguration,
     configuration: UdpSocketConfiguration,
-    outbox: Option<Sender<Message>>,
 }
 
 impl ModuleTrait for UDPSocketListener {
@@ -26,8 +25,8 @@ impl ModuleTrait for UDPSocketListener {
             .expect("Error configuring the filechange module");
 
         UDPSocketListener {
+            properties: configuration,
             configuration: module_config,
-            outbox: None,
         }
     }
 
@@ -35,7 +34,7 @@ impl ModuleTrait for UDPSocketListener {
         &mut self,
         outbox: Option<async_channel::Sender<crate::messaging::message::Message>>,
     ) {
-        self.outbox = outbox;
+        self.properties.outbox = outbox;
     }
 
     fn set_inbox(
@@ -59,11 +58,12 @@ impl ModuleTrait for UDPSocketListener {
                 // Connection established
                 while let Ok((size, _src)) = socket.recv_from(&mut buffer).await {
                     let mut event = HashMap::new();
+                    // Run parsers on the buffer to split it into key-value pairs.
                     event.insert("message_size".into(), (size as i64).into());
                     event.insert("message".into(), "Hola!".into());
 
                     let message = Message::new(event);
-                    if let Some(outbox) = &self.outbox {
+                    if let Some(outbox) = &self.properties.outbox {
                         outbox.send(message).await.expect("Failed to send message");
                     }
                 }
