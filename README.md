@@ -10,19 +10,23 @@ In order to run this program yourself, compile it, add a `-c` switch as an argum
 ```toml
 [modules]
 [modules.echo_file]
-module = "echo"
+module_type = "echo"
 
 [modules.udp_sock_list]
-module = "udpsocketlistener"
-
-[modules.udp_sock_list.module_settings]
+module_type = "udpsocketlistener"
 address = "0.0.0.0"
 port = 8080
 buffer_size = 1024
 
+[modules.tcp_socket_check]
+module_type = "tcpsocketlistener"
+address = "0.0.0.0"
+port = 8081
+buffer_size = 4096
+
 [routes]
 [routes.simple_echo_from_file]
-from = { Single = "udp_sock_list"}
+from = { Multiple = ["udp_sock_list", "tcp_socket_check"]}
 to = { Single = "echo_file"}
 ```
 
