@@ -43,13 +43,6 @@ impl ModuleTrait for UDPSocketListener {
         self.properties.outbox = outbox;
     }
 
-    fn set_inbox(
-        &mut self,
-        _inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>,
-    ) {
-        unimplemented!("UDPSocketListener should not have an input.");
-    }
-
     fn run(self: Box<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let socket = UdpSocket::bind(format!(

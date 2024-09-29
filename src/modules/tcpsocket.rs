@@ -48,13 +48,6 @@ impl ModuleTrait for TCPSocketListener {
         self.properties.outbox = outbox;
     }
 
-    fn set_inbox(
-        &mut self,
-        _inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>,
-    ) {
-        unimplemented!("TCP Socket listener cannot have an inbox. Don't use it as a output module.")
-    }
-
     fn run(self: Box<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let listener = TcpListener::bind(format!(

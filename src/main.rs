@@ -35,9 +35,12 @@ fn main() -> Result<()> {
         port = 8081
         buffer_size = 4096
 
+        [modules.infinitesender]
+        module_type = "infinitesender"
+
         [routes]
         [routes.simple_echo_from_file]
-        from = { Multiple = ["udp_sock_list", "tcp_socket_check"]}
+        from = { Multiple = ["udp_sock_list", "tcp_socket_check", "infinitesender"]}
         to = { Single = "echo_file"}
         "#;
 
