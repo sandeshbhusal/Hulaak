@@ -5,11 +5,11 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Message {
-    fields: HashMap<Value, Value>,
+    pub(crate) fields: HashMap<String, Value>,
 }
 
 impl Message {
-    pub fn new(fields: HashMap<Value, Value>) -> Self {
+    pub fn new(fields: HashMap<String, Value>) -> Self {
         Message { fields }
     }
 }
