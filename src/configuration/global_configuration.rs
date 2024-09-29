@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::module_configuration::ModuleConfiguration;
+use super::module_properties::ModuleProperties;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GlobalConfiguration {
@@ -10,7 +10,7 @@ pub struct GlobalConfiguration {
     pub stage_id: uuid::Uuid,
 
     // List of modules.
-    pub modules: HashMap<String, ModuleConfiguration>,
+    pub modules: HashMap<String, ModuleProperties>,
 
     // List of routes.
     pub routes: HashMap<String, RouteConfiguration>,
@@ -29,4 +29,13 @@ pub struct RouteConfiguration {
 
     pub from: RouteCardinality,
     pub to: RouteCardinality,
+}
+
+impl RouteCardinality {
+    pub fn get_modules(&self) -> Vec<String> {
+        match self {
+            RouteCardinality::Multiple(vec) => vec.clone(),
+            RouteCardinality::Single(name) => vec![name.clone()],
+        }
+    }
 }

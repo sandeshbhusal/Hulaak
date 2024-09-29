@@ -2,11 +2,11 @@ use async_channel::{Receiver, Sender};
 use tokio::task::JoinHandle;
 
 use crate::{
-    configuration::module_configuration::ModuleConfiguration, messaging::message::Message,
+    configuration::module_properties::ModuleProperties, messaging::message::Message,
 };
 
 pub trait ModuleTrait: Sync + Send {
-    fn new(configuration: ModuleConfiguration) -> Self
+    fn new(configuration: ModuleProperties) -> Self
     where
         Self: Sized;
     fn set_outbox(&mut self, outbox: Option<Sender<Message>>);

@@ -7,27 +7,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::messaging::message::Message;
 
-pub type PeerID = String;
-
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub enum ModuleAddressType {
-    #[default]
-    Managed,
-
-    LocalPeerManaged(PeerID),
-    RemotePeerManaged(PeerID),
-}
-
 #[allow(unused)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub struct ModuleConfiguration {
+pub struct ModuleProperties {
     #[serde(default = "Uuid::new_v4")]
     pub uuid: uuid::Uuid,
 
-    pub module: String,
+    pub module_type: String,
     pub description: Option<String>,
-    pub address_type: Option<ModuleAddressType>,
 
+    #[serde(flatten)]
     pub module_settings: Option<HashMap<String, serde_json::Value>>,
 
     #[serde(skip)]

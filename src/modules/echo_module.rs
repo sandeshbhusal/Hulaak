@@ -1,15 +1,15 @@
 use tokio::task::JoinHandle;
 
 use crate::{
-    configuration::module_configuration::ModuleConfiguration, modules::module::ModuleTrait,
+    configuration::module_properties::ModuleProperties, modules::module::ModuleTrait,
 };
 
 pub struct EchoModule {
-    pub(crate) configuration: ModuleConfiguration,
+    pub(crate) configuration: ModuleProperties,
 }
 
 impl ModuleTrait for EchoModule {
-    fn new(configuration: ModuleConfiguration) -> Self {
+    fn new(configuration: ModuleProperties) -> Self {
         EchoModule { configuration }
     }
 
@@ -20,7 +20,7 @@ impl ModuleTrait for EchoModule {
                     let message = inbox.recv().await;
                     match message {
                         Ok(message) => {
-                            println!("Echoing message: {:?}", message);
+                            println!("Echoing message: {:?}", message.fields.get("data"));
                         }
                         Err(e) => {
                             println!("Error receiving message: {:?}", e);

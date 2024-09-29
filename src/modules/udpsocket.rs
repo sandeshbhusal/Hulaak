@@ -1,21 +1,27 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
 use tokio::net::UdpSocket;
 
 use crate::{
-    configuration::module_configuration::ModuleConfiguration, messaging::message::Message,
+    configuration::module_properties::ModuleProperties, messaging::message::Message,
     modules::module::ModuleTrait,
 };
 
-use super::UdpSocketConfiguration;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct UdpSocketConfiguration {
+    address: String,
+    port: u16,
+    buffer_size: usize,
+}
 
 pub struct UDPSocketListener {
-    properties: ModuleConfiguration,
+    properties: ModuleProperties,
     configuration: UdpSocketConfiguration,
 }
 
 impl ModuleTrait for UDPSocketListener {
-    fn new(configuration: ModuleConfiguration) -> Self {
+    fn new(configuration: ModuleProperties) -> Self {
         // Convert module config to udp socket config.
         let _config = configuration.module_settings.clone();
         let serialized_config = serde_json::to_string(&_config).unwrap();
