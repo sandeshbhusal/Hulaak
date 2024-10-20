@@ -109,6 +109,8 @@ impl TCPSocketListener {
                         messages.push(event);
                     }
                 }
+
+                buffer.clear();
             }
 
             if let Some(outbox) = outbox.clone() {
