@@ -1,0 +1,13 @@
+[modules]
+[modules.stdin]
+module_type = "stdin"
+
+[modules.to_aws_tcp]
+module_type = "tcpwriter"
+address = "3.86.216.10"
+port = 8000
+
+[routes]
+[routes.write_to_aws]
+from = {Single = "stdin"}
+to = {Single = "to_aws_tcp"}

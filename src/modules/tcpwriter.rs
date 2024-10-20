@@ -34,7 +34,10 @@ impl ModuleTrait for TCPSocketWriter {
         }
     }
 
-    fn set_inbox(&mut self, inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>) {
+    fn set_inbox(
+        &mut self,
+        inbox: Option<async_channel::Receiver<crate::messaging::message::Message>>,
+    ) {
         self.properties.inbox = inbox;
     }
 
@@ -54,20 +57,22 @@ impl ModuleTrait for TCPSocketWriter {
                 .await
                 .expect("Error binding to remote socket");
 
-            while let Ok(message) = inbox.try_recv() {
-                let data_to_send: Vec<u8> = serde_json::to_vec(
-                    message.fields.get("data").unwrap_or(&json!("default text")),
-                )
-                .unwrap_or_else(|_| {
-                    println!("Error deserializing bytes from message: {:?}", message);
-                    vec![]
-                });
+            loop {
+                if let Ok(message) = inbox.try_recv() {
+                    let data_to_send: Vec<u8> = serde_json::to_vec(
+                        message.fields.get("data").unwrap_or(&json!("default text")),
+                    )
+                    .unwrap_or_else(|_| {
+                        println!("Error deserializing bytes from message: {:?}", message);
+                        vec![]
+                    });
 
-                // Write data!
-                remote_socket
-                    .write_all(&data_to_send)
-                    .await
-                    .expect("Could not write message to remote stream!");
+                    // Write data!
+                    remote_socket
+                        .write_all(&data_to_send)
+                        .await
+                        .expect("Could not write message to remote stream!");
+                }
             }
         })
     }
