@@ -1,0 +1,16 @@
+[modules]
+[modules.listen_to_sandesh]
+module_type = "tcpsocketlistener"
+address = "0.0.0.0"
+port = 8000
+buffer_size = 4096
+
+[modules.echo]
+module_type = "echo"
+[modules.stdin]
+module_type = "stdin"
+
+[routes]
+[routes.listen_to_sandesh]
+from = {Multiple = ["listen_to_sandesh", "stdin"]}
+to   = {Single = "echo"}

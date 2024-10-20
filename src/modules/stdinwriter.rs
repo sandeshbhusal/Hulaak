@@ -1,4 +1,6 @@
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
+
+use tokio::io::{self, AsyncBufReadExt};
 
 use crate::{
     configuration::module_properties::ModuleProperties, messaging::message::Message,
@@ -28,16 +30,10 @@ impl ModuleTrait for StdinWriter {
 
     fn run(self: Box<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
-            // Read data from stdin, writing it to the outbox as newlines are
-            // encountered.
+            let stdin = io::BufReader::new(tokio::io::stdin()); // Use Tokio's async stdin
+            let mut lines = stdin.lines(); // Create an async line stream
 
-            let mut buffer = String::new();
-            let stdin = std::io::stdin(); // We get `Stdin` here.
-            loop {
-                stdin
-                    .read_line(&mut buffer)
-                    .expect("Error reading from stdin");
-
+            while let Ok(Some(buffer)) = lines.next_line().await {
                 if let Some(outbox) = self.properties.outbox.clone() {
                     let timestamp = format!("{:?}", std::time::SystemTime::now());
                     let mut map = HashMap::new();
@@ -49,9 +45,6 @@ impl ModuleTrait for StdinWriter {
                         .await
                         .expect("Error sending message internally");
                 }
-
-                // Sleep for a while here, suspending this thread.
-                tokio::time::sleep(Duration::from_secs(2)).await;
             }
         })
     }
