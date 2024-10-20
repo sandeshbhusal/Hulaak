@@ -95,18 +95,26 @@ impl TCPSocketListener {
             }
 
             let timestamp = format!("{:?}", std::time::SystemTime::now());
-            let mut event: HashMap<String, serde_json::Value> = HashMap::new();
-            let content = std::str::from_utf8(&mut buffer[..size]);
+            let mut messages = vec![];
 
+            let content = std::str::from_utf8(&mut buffer[..size]);
             if let Ok(content) = content {
-                event.insert("data".into(), content.to_string().into());
-                event.insert("timestamp".into(), timestamp.into());
+                // Split content into lines.
+                for line in content.lines() {
+                    let mut event: HashMap<String, serde_json::Value> = HashMap::new();
+                    event.insert("data".into(), line.into());
+                    event.insert("timestamp".into(), timestamp.clone().into());
+
+                    if !event.is_empty() {
+                        messages.push(event);
+                    }
+                }
             }
 
-            if !event.is_empty() {
-                let message = Message::new(event);
-                if let Some(outbox) = outbox.clone() {
-                    outbox.send(message).await.expect("Failed to send message");
+            if let Some(outbox) = outbox.clone() {
+                for message in messages {
+                    let message = Message::new(message);
+                    outbox.send(message).await.unwrap();
                 }
             }
         }

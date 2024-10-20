@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tokio::io::{self, AsyncBufReadExt};
+use tokio::io::AsyncBufReadExt;
 
 use crate::{
     configuration::module_properties::ModuleProperties, messaging::message::Message,
