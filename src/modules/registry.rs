@@ -1,6 +1,9 @@
 use crate::{configuration::module_properties::ModuleProperties, modules::echo_module::EchoModule};
 
-use super::{infinite_sender::InfiniteSender, module::ModuleTrait, tcpsocket::TCPSocketListener, udpsocket::UDPSocketListener};
+use super::{
+    infinite_sender::InfiniteSender, module::ModuleTrait, stdinwriter::StdinWriter,
+    tcpsocket::TCPSocketListener, tcpwriter::TCPSocketWriter, udpsocket::UDPSocketListener,
+};
 
 pub struct ModulesRegistry;
 
@@ -11,6 +14,8 @@ impl ModulesRegistry {
             "udpsocketlistener" => Box::new(UDPSocketListener::new(configuration)),
             "tcpsocketlistener" => Box::new(TCPSocketListener::new(configuration)),
             "infinitesender" => Box::new(InfiniteSender::new(configuration)),
+            "tcpwriter" => Box::new(TCPSocketWriter::new(configuration)),
+            "stdin" => Box::new(StdinWriter::new(configuration)),
             _ => {
                 panic!("Unknown module type: {}", name)
             }

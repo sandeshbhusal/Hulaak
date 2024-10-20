@@ -11,8 +11,10 @@ pub trait ModuleTrait: Sync + Send {
     fn set_outbox(&mut self, _outbox: Option<Sender<Message>>) {
         unimplemented!("This module does not support an outbox");
     }
+
     fn set_inbox(&mut self, _inbox: Option<Receiver<Message>>) {
         unimplemented!("This module does not support an inbox");
     }
+
     fn run(self: Box<Self>) -> JoinHandle<()>;
 }

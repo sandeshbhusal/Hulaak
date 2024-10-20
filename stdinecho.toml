@@ -1,0 +1,11 @@
+[modules]
+[modules.echo_file]
+module_type = "echo"
+
+[modules.input]
+module_type = "stdin"
+
+[routes]
+[routes.simple_echo_input]
+from = { Single = "input" }
+to = { Single = "echo_file" }
