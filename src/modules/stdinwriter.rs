@@ -30,20 +30,30 @@ impl ModuleTrait for StdinWriter {
 
     fn run(self: Box<Self>) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
-            let stdin = io::BufReader::new(tokio::io::stdin()); // Use Tokio's async stdin
-            let mut lines = stdin.lines(); // Create an async line stream
+            let mut stdin = tokio::io::BufReader::new(tokio::io::stdin());
+            let mut buffer = String::new();
 
-            while let Ok(Some(buffer)) = lines.next_line().await {
-                if let Some(outbox) = self.properties.outbox.clone() {
-                    let timestamp = format!("{:?}", std::time::SystemTime::now());
-                    let mut map = HashMap::new();
-                    map.insert("data".into(), buffer.clone().into());
-                    map.insert("timestamp".into(), timestamp.into());
+            loop {
+                buffer.clear(); // Clear the buffer before each read
+                match stdin.read_line(&mut buffer).await {
+                    Ok(0) => break, // End of input
+                    Ok(_) => {
+                        if let Some(outbox) = self.properties.outbox.clone() {
+                            let timestamp = format!("{:?}", std::time::SystemTime::now());
+                            let mut map = HashMap::new();
+                            map.insert("data".into(), buffer.trim().to_string().into());
+                            map.insert("timestamp".into(), timestamp.into());
 
-                    outbox
-                        .send(Message::new(map))
-                        .await
-                        .expect("Error sending message internally");
+                            if let Err(e) = outbox.send(Message::new(map)).await {
+                                eprintln!("Error sending message internally: {}", e);
+                                break;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error reading from stdin: {}", e);
+                        break;
+                    }
                 }
             }
         })
